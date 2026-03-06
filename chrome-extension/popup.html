@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Manager</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Cookie Manager</h1>
+  </div>
+
+  <div class="info-bar" id="info-bar">
+    <span id="domain-text">加载中...</span>
+    <span class="badge" id="cookie-count">0</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="view">查看</button>
+    <button class="tab" data-tab="clean">清理</button>
+    <button class="tab" data-tab="inject">导入</button>
+  </div>
+
+  <!-- 查看 Tab -->
+  <div class="tab-content active" id="tab-view">
+    <div class="cookie-list" id="cookie-list">
+      <div class="empty">加载中...</div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="export-btn">导出Cookie</button>
+      <button class="btn btn-secondary" id="refresh-btn">刷新</button>
+    </div>
+  </div>
+
+  <!-- 清理 Tab -->
+  <div class="tab-content" id="tab-clean">
+    <div class="btn-group-vertical">
+      <button class="btn btn-danger" id="clear-cookies-btn">清除所有Cookie（含HttpOnly）</button>
+      <button class="btn btn-danger" id="clear-data-btn">清除缓存/Storage/IndexedDB</button>
+      <button class="btn btn-danger-strong" id="clear-all-btn">一键清除全部</button>
+    </div>
+  </div>
+
+  <!-- 导入 Tab -->
+  <div class="tab-content" id="tab-inject">
+    <textarea class="textarea" id="cookie-input" placeholder="粘贴Cookie字符串，例如:&#10;auth_token=abc123;guest_id=v1:123;Path=/;Domain=x.com;ct0=xyz789"></textarea>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="inject-btn">导入Cookie</button>
+      <button class="btn btn-success" id="inject-reload-btn">导入并刷新</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
