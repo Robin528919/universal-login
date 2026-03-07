@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Universal Login - Cookie Manager
 // @namespace    https://github.com/universal-login
-// @version      1.1.0
+// @version      1.2.0
 // @description  清理网站Cookies/缓存，批量导入Cookies实现快速登录
 // @author       You
 // @match        *://*/*
@@ -31,7 +31,7 @@
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       width: 520px;
-      max-height: 80vh;
+      max-height: 85vh;
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -70,10 +70,10 @@
     .ul-body {
       padding: 20px;
       overflow-y: auto;
-      max-height: calc(80vh - 56px);
+      max-height: calc(85vh - 52px);
     }
     .ul-section {
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .ul-section:last-child {
       margin-bottom: 0;
@@ -89,10 +89,10 @@
     .ul-info {
       background: #f0f4ff;
       border-radius: 8px;
-      padding: 12px 14px;
+      padding: 10px 14px;
       font-size: 13px;
       color: #4338ca;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
       line-height: 1.5;
     }
     .ul-btn-group {
@@ -122,6 +122,13 @@
     .ul-btn-danger:hover {
       background: #fecaca;
     }
+    .ul-btn-danger-solid {
+      background: #dc2626;
+      color: #fff;
+    }
+    .ul-btn-danger-solid:hover {
+      background: #b91c1c;
+    }
     .ul-btn-primary {
       background: #667eea;
       color: #fff;
@@ -137,15 +144,15 @@
       background: #e5e7eb;
     }
     .ul-btn-success {
-      background: #d1fae5;
-      color: #059669;
+      background: #059669;
+      color: #fff;
     }
     .ul-btn-success:hover {
-      background: #a7f3d0;
+      background: #047857;
     }
     .ul-textarea {
       width: 100%;
-      min-height: 120px;
+      min-height: 100px;
       border: 1.5px solid #d1d5db;
       border-radius: 8px;
       padding: 10px 12px;
@@ -193,17 +200,17 @@
     .ul-toast-error { background: #dc2626; }
     .ul-toast-info { background: #2563eb; }
     .ul-cookie-list {
-      max-height: 200px;
+      max-height: 180px;
       overflow-y: auto;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .ul-cookie-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 12px;
+      padding: 6px 12px;
       border-bottom: 1px solid #f3f4f6;
       font-size: 12px;
       font-family: "SF Mono", Monaco, monospace;
@@ -238,37 +245,11 @@
       margin-left: 6px;
       font-weight: 600;
     }
-    .ul-tabs {
-      display: flex;
-      border-bottom: 2px solid #e5e7eb;
-      margin-bottom: 16px;
-    }
-    .ul-tab {
-      padding: 8px 16px;
-      font-size: 13px;
-      font-weight: 500;
-      color: #6b7280;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
-      transition: all 0.2s;
-      background: none;
-      border-top: none;
-      border-left: none;
-      border-right: none;
-    }
-    .ul-tab:hover {
-      color: #374151;
-    }
-    .ul-tab.active {
-      color: #667eea;
-      border-bottom-color: #667eea;
-    }
-    .ul-tab-content {
-      display: none;
-    }
-    .ul-tab-content.active {
-      display: block;
+    .ul-footer {
+      text-align: center;
+      font-size: 11px;
+      color: #9ca3af;
+      padding-top: 8px;
     }
   `);
 
@@ -300,9 +281,7 @@
   function getDomainVariants(hostname) {
     const parts = hostname.split('.');
     const variants = [hostname];
-    // 添加带点前缀的域名（用于子域名共享cookie）
     variants.push('.' + hostname);
-    // 添加上级域名
     if (parts.length > 2) {
       const parent = parts.slice(1).join('.');
       variants.push(parent);
@@ -321,30 +300,97 @@
     }).filter(c => c.name);
   }
 
+  /**
+   * 通过 GM_cookie.delete 删除 cookie
+   * Tampermonkey API: GM_cookie.delete({ url, name, firstPartyDomain })
+   * url 必须匹配 cookie 的 domain，需要构造正确的 URL
+   */
   function deleteCookieViaGM(name, domain, path) {
+    const cleanDomain = (domain || getCurrentDomain()).replace(/^\./, '');
+    const cleanPath = path || '/';
+    // 同时尝试 https 和 http，确保 Secure cookie 也能被删除
+    const urls = [
+      'https://' + cleanDomain + cleanPath,
+      'http://' + cleanDomain + cleanPath
+    ];
+    return Promise.all(urls.map(url =>
+      new Promise((resolve) => {
+        GM_cookie.delete({ url, name }, () => resolve());
+      })
+    ));
+  }
+
+  function listCookiesViaGM(filter) {
     return new Promise((resolve) => {
-      GM_cookie.delete({ name, domain, path }, () => resolve());
+      GM_cookie.list(filter, (cookies) => {
+        resolve(cookies || []);
+      });
     });
   }
 
-  async function clearAllCookies() {
-    const cookies = getCurrentCookies();
-    const domains = getDomainVariants(getCurrentDomain());
-    const paths = ['/', '', location.pathname];
-    let count = 0;
-    const useGM = hasGMCookie();
+  function hasGMCookieList() {
+    return typeof GM_cookie !== 'undefined' && typeof GM_cookie.list === 'function';
+  }
 
-    for (const cookie of cookies) {
-      // 用 document.cookie 清除（非 HttpOnly）
+  function hasGMCookieDelete() {
+    return typeof GM_cookie !== 'undefined' && typeof GM_cookie.delete === 'function';
+  }
+
+  async function clearAllCookies() {
+    const hostname = getCurrentDomain();
+    const domains = getDomainVariants(hostname);
+    const paths = ['/', '', location.pathname];
+    const canList = hasGMCookieList();
+    const canDelete = hasGMCookieDelete();
+    const deleted = new Set();
+    let count = 0;
+
+    if (canList && canDelete) {
+      // 第一步：按域名变体查询并删除
       for (const domain of domains) {
-        for (const path of paths) {
-          document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; domain=${domain}`;
-          document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}`;
+        const cookies = await listCookiesViaGM({ domain });
+        for (const c of cookies) {
+          const key = `${c.name}|${c.domain}|${c.path}`;
+          if (deleted.has(key)) continue;
+          await deleteCookieViaGM(c.name, c.domain, c.path);
+          deleted.add(key);
+          count++;
         }
       }
 
-      // 用 GM_cookie 清除（包括 HttpOnly）
-      if (useGM) {
+      // 第二步：循环验证（按域名查询），最多 3 轮
+      for (let round = 0; round < 3; round++) {
+        let remaining = [];
+        for (const domain of domains) {
+          const cookies = await listCookiesViaGM({ domain });
+          remaining = remaining.concat(cookies);
+        }
+        if (remaining.length === 0) break;
+        for (const c of remaining) {
+          await deleteCookieViaGM(c.name, c.domain, c.path);
+          // 尝试更多 path 组合
+          for (const path of paths) {
+            await deleteCookieViaGM(c.name, c.domain, path);
+          }
+          count++;
+        }
+      }
+    }
+
+    // 最后：用 document.cookie 补充清除（含 Secure 标记）
+    const docCookies = getCurrentCookies();
+    for (const cookie of docCookies) {
+      for (const domain of domains) {
+        for (const path of paths) {
+          // 普通删除
+          document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; domain=${domain}`;
+          document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}`;
+          // 带 Secure 标记删除（用于 Secure cookie）
+          document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; domain=${domain}; Secure`;
+          document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; Secure`;
+        }
+      }
+      if (canDelete) {
         for (const domain of domains) {
           for (const path of paths) {
             await deleteCookieViaGM(cookie.name, domain, path);
@@ -354,24 +400,11 @@
       count++;
     }
 
-    // 如果有 GM_cookie.list，还能获取到 HttpOnly cookie 并清除
-    if (useGM && typeof GM_cookie.list === 'function') {
-      const allCookies = await new Promise((resolve) => {
-        GM_cookie.list({ domain: getCurrentDomain() }, (cookies) => {
-          resolve(cookies || []);
-        });
-      });
-      for (const c of allCookies) {
-        await deleteCookieViaGM(c.name, c.domain, c.path);
-        count++;
-      }
-    }
-
     return count;
   }
 
   function clearStorage() {
-    let cleared = { localStorage: 0, sessionStorage: 0 };
+    const cleared = { localStorage: 0, sessionStorage: 0 };
     try {
       cleared.localStorage = localStorage.length;
       localStorage.clear();
@@ -383,13 +416,13 @@
     return cleared;
   }
 
-  function clearCacheStorage() {
+  async function clearCacheStorage() {
     if ('caches' in window) {
-      return caches.keys().then(names => {
-        return Promise.all(names.map(name => caches.delete(name)));
-      }).then(results => results.length);
+      const names = await caches.keys();
+      await Promise.all(names.map(name => caches.delete(name)));
+      return names.length;
     }
-    return Promise.resolve(0);
+    return 0;
   }
 
   /**
@@ -403,13 +436,11 @@
 
     const str = input.trim();
 
-    // 已知的 cookie 属性关键字（忽略大小写）
     const ATTRS = new Set([
       'path', 'domain', 'expires', 'max-age', 'samesite',
       'secure', 'httponly', 'priority', 'partitioned'
     ]);
 
-    // 按分号拆分
     const parts = str.split(';').map(p => p.trim()).filter(Boolean);
     let currentCookie = null;
 
@@ -417,9 +448,8 @@
       const eqIdx = part.indexOf('=');
 
       if (eqIdx === -1) {
-        // 没有等号，可能是 Secure / HttpOnly 等布尔属性
         if (ATTRS.has(part.toLowerCase())) {
-          continue; // 跳过属性
+          continue;
         }
         continue;
       }
@@ -427,9 +457,7 @@
       const key = part.substring(0, eqIdx).trim();
       const val = part.substring(eqIdx + 1).trim();
 
-      // 判断是否是 cookie 属性
       if (ATTRS.has(key.toLowerCase())) {
-        // 如果是 Domain 属性，记录到当前 cookie
         if (key.toLowerCase() === 'domain' && currentCookie) {
           currentCookie.domain = val;
         }
@@ -445,7 +473,6 @@
         continue;
       }
 
-      // 否则是一个新的 cookie
       currentCookie = { name: key, value: val };
       result.push(currentCookie);
     }
@@ -453,7 +480,6 @@
     return result;
   }
 
-  // 已知需要 HttpOnly 的 cookie 名称（常见网站）
   const HTTPONLY_COOKIES = new Set([
     'auth_token', 'twid', '__cf_bm', '_ga', '_gid',
     'sess', 'session', 'sid', 'JSESSIONID',
@@ -465,39 +491,38 @@
   }
 
   /**
-   * 获取 cookie 应该注入的所有域名列表
-   * 例如当前 hostname=www.x.com, cookie.domain=x.com 时:
-   *   -> ['.x.com', '.www.x.com', 'x.com', 'www.x.com']
-   * 没有指定 domain 时使用当前 hostname 的所有变体
+   * 获取 cookie 应该注入的唯一目标域名
+   * - 有 Domain 属性 → 用 .domain（覆盖所有子域名）
+   * - 无 Domain 属性 → 用 .父级域名（覆盖子域名）
+   * 只写入一个域名，避免重复 cookie 导致服务器验证失败
    */
-  function getInjectionDomains(cookieDomain) {
-    const hostname = getCurrentDomain();
-    const domains = new Set();
-
+  function getTargetDomain(cookieDomain) {
     if (cookieDomain) {
-      // 用户指定的 domain（确保带点前缀用于子域名共享）
       const cleaned = cookieDomain.replace(/^\./, '');
-      domains.add('.' + cleaned);
-      domains.add(cleaned);
+      return '.' + cleaned;
     }
-
-    // 始终添加当前 hostname 的所有变体
-    const variants = getDomainVariants(hostname);
-    for (const v of variants) {
-      domains.add(v);
+    const hostname = getCurrentDomain();
+    const parts = hostname.split('.');
+    if (parts.length > 2) {
+      return '.' + parts.slice(1).join('.');
     }
-
-    return [...domains];
+    return '.' + hostname;
   }
 
-  function setCookieViaGMSingle(cookie, domain) {
+  function setCookieViaGM(cookie) {
     return new Promise((resolve, reject) => {
+      const domain = getTargetDomain(cookie.domain);
       const path = cookie.path || '/';
       const expirationDate = cookie.maxAge
         ? Math.floor(Date.now() / 1000) + parseInt(cookie.maxAge, 10)
         : Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
 
+      // 构造正确的 URL 供 GM_cookie 使用
+      const cleanDomain = domain.replace(/^\./, '');
+      const url = `${location.protocol}//${cleanDomain}${path}`;
+
       GM_cookie.set({
+        url: url,
         name: cookie.name,
         value: cookie.value,
         domain: domain,
@@ -516,7 +541,8 @@
     });
   }
 
-  function setCookieViaDocumentSingle(cookie, domain) {
+  function setCookieViaDocument(cookie) {
+    const domain = getTargetDomain(cookie.domain);
     const cookieParts = [`${cookie.name}=${cookie.value}`];
     cookieParts.push(`path=${cookie.path || '/'}`);
     cookieParts.push(`domain=${domain}`);
@@ -543,44 +569,30 @@
 
     const useGM = hasGMCookie();
     let successCount = 0;
-    let domainCount = 0;
     const errors = [];
 
     for (const cookie of cookies) {
-      const domains = getInjectionDomains(cookie.domain);
-      let cookieSuccess = false;
-
-      for (const domain of domains) {
-        try {
-          if (useGM) {
-            await setCookieViaGMSingle(cookie, domain);
-          } else {
-            setCookieViaDocumentSingle(cookie, domain);
-          }
-          domainCount++;
-          cookieSuccess = true;
-        } catch (_) {
-          // 某些域名可能设置失败（跨域限制），继续尝试其他域名
+      try {
+        if (useGM) {
+          await setCookieViaGM(cookie);
+        } else {
+          setCookieViaDocument(cookie);
         }
-      }
-
-      if (cookieSuccess) {
         successCount++;
-      } else {
-        errors.push(`${cookie.name}: 所有域名均设置失败`);
+      } catch (e) {
+        errors.push(`${cookie.name}: ${e.message}`);
       }
     }
 
-    const methodNote = useGM ? '(GM_cookie模式，支持HttpOnly)' : '(document.cookie模式，不支持HttpOnly)';
+    const methodNote = useGM ? '(GM_cookie模式)' : '(document.cookie模式)';
     return {
       success: successCount > 0,
       count: successCount,
       total: cookies.length,
-      domainCount,
       errors,
       message: errors.length > 0
-        ? `${methodNote} 注入 ${successCount}/${cookies.length} 个Cookie (${domainCount}次域名写入)，${errors.length} 个失败`
-        : `${methodNote} 成功注入 ${successCount} 个Cookie (${domainCount}次域名写入)`
+        ? `${methodNote} 注入 ${successCount}/${cookies.length} 个Cookie，${errors.length} 个失败`
+        : `${methodNote} 成功注入 ${successCount} 个Cookie`
     };
   }
 
@@ -591,12 +603,10 @@
 
   // ========== UI ==========
   function createPanel() {
-    // 遮罩层
     const overlay = document.createElement('div');
     overlay.id = 'ul-overlay';
     document.body.appendChild(overlay);
 
-    // 面板
     const panel = document.createElement('div');
     panel.id = 'ul-panel';
 
@@ -609,65 +619,60 @@
       </div>
       <div class="ul-body">
         <div class="ul-info">
-          当前域名: <strong>${getCurrentDomain()}</strong><br>
-          Cookie引擎: <strong>${hasGMCookie() ? 'GM_cookie (支持HttpOnly)' : 'document.cookie (不支持HttpOnly)'}</strong>
+          当前域名: <strong>${getCurrentDomain()}</strong> &nbsp;|&nbsp;
+          引擎: <strong>${hasGMCookie() ? 'GM_cookie (HttpOnly)' : 'document.cookie'}</strong>
         </div>
 
-        <div class="ul-tabs">
-          <button class="ul-tab active" data-tab="view">查看Cookie<span class="ul-count">${cookies.length}</span></button>
-          <button class="ul-tab" data-tab="clean">清理</button>
-          <button class="ul-tab" data-tab="inject">导入Cookie</button>
+        <!-- Cookie 列表 -->
+        <div class="ul-section">
+          <div class="ul-section-title">Cookie 列表 <span class="ul-count" id="ul-cookie-count">${cookies.length}</span></div>
+          ${cookies.length > 0
+            ? `<div class="ul-cookie-list" id="ul-cookie-list">
+                ${cookies.map(c => `
+                  <div class="ul-cookie-item">
+                    <span class="ul-cookie-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>
+                    <span class="ul-cookie-value" title="${escapeHtml(c.value)}">${escapeHtml(c.value)}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="ul-btn-group">
+                <button class="ul-btn ul-btn-secondary" id="ul-export-btn">导出 Cookie</button>
+                <button class="ul-btn ul-btn-secondary" id="ul-refresh-btn">刷新列表</button>
+              </div>`
+            : '<div style="text-align:center;color:#9ca3af;padding:16px;">当前网站没有 Cookie</div>'
+          }
         </div>
 
-        <!-- 查看 Tab -->
-        <div class="ul-tab-content active" id="ul-tab-view">
-          <div class="ul-section">
-            ${cookies.length > 0
-              ? `<div class="ul-cookie-list" id="ul-cookie-list">
-                  ${cookies.map(c => `
-                    <div class="ul-cookie-item">
-                      <span class="ul-cookie-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>
-                      <span class="ul-cookie-value" title="${escapeHtml(c.value)}">${escapeHtml(c.value)}</span>
-                    </div>
-                  `).join('')}
-                </div>
-                <div class="ul-btn-group">
-                  <button class="ul-btn ul-btn-secondary" id="ul-export-btn">导出Cookie</button>
-                  <button class="ul-btn ul-btn-secondary" id="ul-refresh-btn">刷新列表</button>
-                </div>`
-              : '<div style="text-align:center;color:#9ca3af;padding:20px;">当前网站没有Cookie</div>'
-            }
+        <div class="ul-divider"></div>
+
+        <!-- 清理 -->
+        <div class="ul-section">
+          <div class="ul-section-title">清理</div>
+          <div class="ul-btn-group">
+            <button class="ul-btn ul-btn-danger" id="ul-clear-cookies-btn">清除所有 Cookie</button>
+            <button class="ul-btn ul-btn-danger" id="ul-clear-storage-btn">清除 Storage</button>
+          </div>
+          <div style="height:10px"></div>
+          <div class="ul-btn-group">
+            <button class="ul-btn ul-btn-danger" id="ul-clear-cache-btn">清除 Cache Storage</button>
+            <button class="ul-btn ul-btn-danger-solid" id="ul-clear-all-btn">一键清除全部</button>
           </div>
         </div>
 
-        <!-- 清理 Tab -->
-        <div class="ul-tab-content" id="ul-tab-clean">
-          <div class="ul-section">
-            <div class="ul-section-title">清理选项</div>
-            <div class="ul-btn-group">
-              <button class="ul-btn ul-btn-danger" id="ul-clear-cookies-btn">清除所有Cookie</button>
-              <button class="ul-btn ul-btn-danger" id="ul-clear-storage-btn">清除Storage</button>
-            </div>
-            <div style="height:10px"></div>
-            <div class="ul-btn-group">
-              <button class="ul-btn ul-btn-danger" id="ul-clear-cache-btn">清除Cache Storage</button>
-              <button class="ul-btn ul-btn-danger" id="ul-clear-all-btn">一键清除全部</button>
-            </div>
+        <div class="ul-divider"></div>
+
+        <!-- 导入 Cookie -->
+        <div class="ul-section">
+          <div class="ul-section-title">导入 Cookie</div>
+          <textarea class="ul-textarea" id="ul-cookie-input" placeholder="粘贴 Cookie 字符串，例如:&#10;auth_token=abc123; guest_id=v1:123;&#10;Path=/; Domain=x.com; ct0=xyz789"></textarea>
+          <div style="height:10px"></div>
+          <div class="ul-btn-group">
+            <button class="ul-btn ul-btn-primary" id="ul-inject-btn">导入 Cookie</button>
+            <button class="ul-btn ul-btn-success" id="ul-inject-reload-btn">导入并刷新页面</button>
           </div>
         </div>
 
-        <!-- 导入 Tab -->
-        <div class="ul-tab-content" id="ul-tab-inject">
-          <div class="ul-section">
-            <div class="ul-section-title">粘贴Cookie字符串</div>
-            <textarea class="ul-textarea" id="ul-cookie-input" placeholder="粘贴Cookie字符串，例如:&#10;auth_token=abc123;guest_id=v1:123;Path=/;Domain=x.com;ct0=xyz789"></textarea>
-            <div style="height:10px"></div>
-            <div class="ul-btn-group">
-              <button class="ul-btn ul-btn-primary" id="ul-inject-btn">导入Cookie</button>
-              <button class="ul-btn ul-btn-success" id="ul-inject-reload-btn">导入并刷新页面</button>
-            </div>
-          </div>
-        </div>
+        <div class="ul-footer">快捷键 Alt+C 打开 &nbsp;|&nbsp; ESC 关闭</div>
       </div>
     `;
 
@@ -682,7 +687,6 @@
   }
 
   function bindEvents(panel, overlay) {
-    // 关闭
     const closePanel = () => {
       panel.style.display = 'none';
       overlay.style.display = 'none';
@@ -691,33 +695,21 @@
     panel.querySelector('#ul-close-btn').addEventListener('click', closePanel);
     overlay.addEventListener('click', closePanel);
 
-    // Tab 切换
-    panel.querySelectorAll('.ul-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        panel.querySelectorAll('.ul-tab').forEach(t => t.classList.remove('active'));
-        panel.querySelectorAll('.ul-tab-content').forEach(c => c.classList.remove('active'));
-        tab.classList.add('active');
-        const tabId = `ul-tab-${tab.dataset.tab}`;
-        panel.querySelector(`#${tabId}`).classList.add('active');
-      });
-    });
-
     // 导出
     const exportBtn = panel.querySelector('#ul-export-btn');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => {
         const cookieStr = exportCookies();
         navigator.clipboard.writeText(cookieStr).then(() => {
-          showToast('Cookie已复制到剪贴板');
+          showToast('Cookie 已复制到剪贴板');
         }).catch(() => {
-          // fallback
           const ta = document.createElement('textarea');
           ta.value = cookieStr;
           document.body.appendChild(ta);
           ta.select();
           document.execCommand('copy');
           ta.remove();
-          showToast('Cookie已复制到剪贴板');
+          showToast('Cookie 已复制到剪贴板');
         });
       });
     }
@@ -737,8 +729,8 @@
     // 清除 Cookie
     panel.querySelector('#ul-clear-cookies-btn').addEventListener('click', async () => {
       const count = await clearAllCookies();
-      showToast(`已清除 ${count} 个Cookie`);
-      refreshCookieCount(panel);
+      showToast(`已清除 ${count} 个 Cookie`);
+      refreshCookieList(panel);
     });
 
     // 清除 Storage
@@ -748,10 +740,9 @@
     });
 
     // 清除 Cache
-    panel.querySelector('#ul-clear-cache-btn').addEventListener('click', () => {
-      clearCacheStorage().then(count => {
-        showToast(`已清除 ${count} 个Cache Storage`);
-      });
+    panel.querySelector('#ul-clear-cache-btn').addEventListener('click', async () => {
+      const count = await clearCacheStorage();
+      showToast(`已清除 ${count} 个 Cache Storage`);
     });
 
     // 一键清除
@@ -760,7 +751,7 @@
       const storageResult = clearStorage();
       const cacheCount = await clearCacheStorage();
       showToast(`已清除: Cookie(${cookieCount}) + Storage(${storageResult.localStorage + storageResult.sessionStorage}) + Cache(${cacheCount})`);
-      refreshCookieCount(panel);
+      refreshCookieList(panel);
     });
 
     // 导入 Cookie
@@ -769,7 +760,7 @@
       const result = await injectCookies(input);
       showToast(result.message, result.success ? 'success' : 'error');
       if (result.success) {
-        refreshCookieCount(panel);
+        refreshCookieList(panel);
       }
     });
 
@@ -793,10 +784,24 @@
     });
   }
 
-  function refreshCookieCount(panel) {
-    const count = getCurrentCookies().length;
-    const countEl = panel.querySelector('.ul-count');
-    if (countEl) countEl.textContent = count;
+  function refreshCookieList(panel) {
+    const cookies = getCurrentCookies();
+    const countEl = panel.querySelector('#ul-cookie-count');
+    if (countEl) countEl.textContent = cookies.length;
+
+    const listEl = panel.querySelector('#ul-cookie-list');
+    if (listEl) {
+      if (cookies.length > 0) {
+        listEl.innerHTML = cookies.map(c => `
+          <div class="ul-cookie-item">
+            <span class="ul-cookie-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>
+            <span class="ul-cookie-value" title="${escapeHtml(c.value)}">${escapeHtml(c.value)}</span>
+          </div>
+        `).join('');
+      } else {
+        listEl.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:16px;">已全部清除</div>';
+      }
+    }
   }
 
   function destroyPanel() {

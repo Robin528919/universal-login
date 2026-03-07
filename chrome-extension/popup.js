@@ -31,7 +31,7 @@ function initTabs() {
 
 // ========== Cookie 列表 ==========
 async function loadCookies() {
-  const res = await sendMessage('getCookies', { url: currentUrl });
+  const res = await sendMessage('getCookies', { url: currentUrl, hostname: currentHostname });
   const list = document.getElementById('cookie-list');
   const count = document.getElementById('cookie-count');
 
@@ -59,7 +59,7 @@ async function loadCookies() {
 function initButtons() {
   // 导出
   document.getElementById('export-btn').addEventListener('click', async () => {
-    const res = await sendMessage('exportCookies', { url: currentUrl });
+    const res = await sendMessage('exportCookies', { url: currentUrl, hostname: currentHostname });
     if (res.success) {
       await navigator.clipboard.writeText(res.cookieStr);
       showToast('Cookie已复制到剪贴板');
@@ -76,7 +76,7 @@ function initButtons() {
 
   // 清除 Cookie
   document.getElementById('clear-cookies-btn').addEventListener('click', async () => {
-    const res = await sendMessage('clearCookies', { url: currentUrl });
+    const res = await sendMessage('clearCookies', { url: currentUrl, hostname: currentHostname });
     showToast(`已清除 ${res.count} 个Cookie（含HttpOnly）`);
     await loadCookies();
   });
@@ -96,7 +96,7 @@ function initButtons() {
   document.getElementById('clear-all-btn').addEventListener('click', async () => {
     const origin = new URL(currentUrl).origin;
     const [cookieRes, dataRes] = await Promise.all([
-      sendMessage('clearCookies', { url: currentUrl }),
+      sendMessage('clearCookies', { url: currentUrl, hostname: currentHostname }),
       sendMessage('clearBrowsingData', { origin })
     ]);
     showToast(`已清除: Cookie(${cookieRes.count}) + 缓存/Storage`);
