@@ -300,106 +300,178 @@
     }).filter(c => c.name);
   }
 
+  const LOG_PREFIX = '[CookieManager]';
+
   /**
-   * 通过 GM_cookie.delete 删除 cookie
-   * Tampermonkey API: GM_cookie.delete({ url, name, firstPartyDomain })
-   * url 必须匹配 cookie 的 domain，需要构造正确的 URL
+   * 通过 GM_cookie.delete 删除单个 cookie，尝试多种 URL 策略
    */
-  function deleteCookieViaGM(name, domain, path) {
+  function deleteCookieViaGMSingle(details) {
+    return new Promise((resolve) => {
+      GM_cookie.delete(details, (error) => {
+        resolve({ ok: !error, error, details });
+      });
+    });
+  }
+
+  async function deleteCookieViaGM(name, domain, path) {
     const cleanDomain = (domain || getCurrentDomain()).replace(/^\./, '');
     const cleanPath = path || '/';
-    // 同时尝试 https 和 http，确保 Secure cookie 也能被删除
-    const urls = [
-      'https://' + cleanDomain + cleanPath,
-      'http://' + cleanDomain + cleanPath
+
+    // 多种 URL 策略，逐个尝试直到成功
+    const attempts = [
+      { name, url: 'https://' + cleanDomain + cleanPath },
+      { name, url: 'http://' + cleanDomain + cleanPath },
+      { name, url: 'https://' + cleanDomain + '/' },
+      { name, url: 'http://' + cleanDomain + '/' },
+      { name },  // 不传 url，使用默认（当前页面 URL）
     ];
-    return Promise.all(urls.map(url =>
-      new Promise((resolve) => {
-        GM_cookie.delete({ url, name }, () => resolve());
-      })
-    ));
+
+    for (const details of attempts) {
+      const result = await deleteCookieViaGMSingle(details);
+      if (result.ok) {
+        console.log(LOG_PREFIX, 'deleted:', name, details.url || '(default)');
+        return true;
+      }
+    }
+    console.warn(LOG_PREFIX, 'all attempts failed for:', name, domain, path);
+    return false;
   }
 
   function listCookiesViaGM(filter) {
     return new Promise((resolve) => {
-      GM_cookie.list(filter, (cookies) => {
+      GM_cookie.list(filter, (cookies, error) => {
+        if (error) {
+          console.warn(LOG_PREFIX, 'list error:', error, 'filter:', filter);
+        }
         resolve(cookies || []);
       });
     });
   }
 
-  function hasGMCookieList() {
-    return typeof GM_cookie !== 'undefined' && typeof GM_cookie.list === 'function';
-  }
-
-  function hasGMCookieDelete() {
-    return typeof GM_cookie !== 'undefined' && typeof GM_cookie.delete === 'function';
+  function hasGMCookieAPI() {
+    const has = typeof GM_cookie !== 'undefined'
+      && typeof GM_cookie.list === 'function'
+      && typeof GM_cookie.delete === 'function';
+    console.log(LOG_PREFIX, 'GM_cookie available:', has);
+    return has;
   }
 
   async function clearAllCookies() {
     const hostname = getCurrentDomain();
     const domains = getDomainVariants(hostname);
     const paths = ['/', '', location.pathname];
-    const canList = hasGMCookieList();
-    const canDelete = hasGMCookieDelete();
-    const deleted = new Set();
+    const canGM = hasGMCookieAPI();
     let count = 0;
 
-    if (canList && canDelete) {
-      // 第一步：按域名变体查询并删除
+    if (canGM) {
+      // 第一步：按域名变体查询所有 cookie
+      const allFound = new Map(); // key -> cookie object
       for (const domain of domains) {
         const cookies = await listCookiesViaGM({ domain });
+        console.log(LOG_PREFIX, `list({ domain: "${domain}" }) =>`, cookies.length, 'cookies');
         for (const c of cookies) {
-          const key = `${c.name}|${c.domain}|${c.path}`;
-          if (deleted.has(key)) continue;
-          await deleteCookieViaGM(c.name, c.domain, c.path);
-          deleted.add(key);
-          count++;
+          allFound.set(`${c.name}|${c.domain}|${c.path}`, c);
         }
       }
 
-      // 第二步：循环验证（按域名查询），最多 3 轮
-      for (let round = 0; round < 3; round++) {
-        let remaining = [];
-        for (const domain of domains) {
-          const cookies = await listCookiesViaGM({ domain });
-          remaining = remaining.concat(cookies);
-        }
-        if (remaining.length === 0) break;
-        for (const c of remaining) {
-          await deleteCookieViaGM(c.name, c.domain, c.path);
-          // 尝试更多 path 组合
-          for (const path of paths) {
-            await deleteCookieViaGM(c.name, c.domain, path);
-          }
-          count++;
+      // 补充：不带过滤查全部，按域名匹配过滤
+      const everything = await listCookiesViaGM({});
+      console.log(LOG_PREFIX, 'list({}) =>', everything.length, 'total cookies');
+      for (const c of everything) {
+        const d = (c.domain || '').replace(/^\./, '');
+        if (hostname === d || hostname.endsWith('.' + d) || d.endsWith('.' + hostname)) {
+          allFound.set(`${c.name}|${c.domain}|${c.path}`, c);
         }
       }
+
+      console.log(LOG_PREFIX, 'unique cookies to delete:', allFound.size);
+
+      // 第二步：逐个删除
+      for (const c of allFound.values()) {
+        await deleteCookieViaGM(c.name, c.domain, c.path);
+        count++;
+      }
+
+      // 第三步：GM_cookie.list 可能看不到 HttpOnly cookie
+      // 直接对已知的常见 auth cookie 名暴力删除
+      const knownAuthCookies = [
+        'auth_token', 'twid', 'ct0', 'att', '_twitter_sess',
+        '__cf_bm', 'cf_clearance', '_cf_bm',
+        'JSESSIONID', 'PHPSESSID', 'connect.sid', 'sid', 'session',
+        'ASP.NET_SessionId', '_ga', '_gid', '_gcl_au',
+        '_cfuvid', '_uetvid', '_mkto_trk'
+      ];
+      const baseUrl = location.protocol + '//' + hostname;
+      for (const name of knownAuthCookies) {
+        // 尝试多种 URL + domain 组合
+        for (const domain of domains) {
+          const cleanDomain = domain.replace(/^\./, '');
+          const urls = [
+            'https://' + cleanDomain + '/',
+            'http://' + cleanDomain + '/'
+          ];
+          for (const url of urls) {
+            await new Promise(resolve => {
+              GM_cookie.delete({ url, name }, () => resolve());
+            });
+          }
+        }
+        count++;
+      }
+      console.log(LOG_PREFIX, 'brute-force deleted', knownAuthCookies.length, 'known auth cookie names');
+
+      // 验证
+      await new Promise(r => setTimeout(r, 500));
+      const realCheck = await listCookiesViaGM({ domain: hostname });
+      console.log(LOG_PREFIX, '=== REAL VERIFY ===', realCheck.length, 'remaining from list');
+      console.log(LOG_PREFIX, 'document.cookie after clear:', document.cookie || '(empty)');
     }
 
-    // 最后：用 document.cookie 补充清除（含 Secure 标记）
+    // 用 document.cookie 补充清除
     const docCookies = getCurrentCookies();
+    console.log(LOG_PREFIX, 'document.cookie has:', docCookies.length, 'cookies');
     for (const cookie of docCookies) {
       for (const domain of domains) {
         for (const path of paths) {
-          // 普通删除
           document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; domain=${domain}`;
           document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}`;
-          // 带 Secure 标记删除（用于 Secure cookie）
           document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; domain=${domain}; Secure`;
           document.cookie = `${cookie.name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; Secure`;
         }
       }
-      if (canDelete) {
+      if (canGM) {
         for (const domain of domains) {
-          for (const path of paths) {
-            await deleteCookieViaGM(cookie.name, domain, path);
-          }
+          await deleteCookieViaGM(cookie.name, domain, '/');
         }
       }
       count++;
     }
 
+    // 清除 Service Worker（可能缓存了认证状态）
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        await reg.unregister();
+      }
+      if (registrations.length > 0) {
+        console.log(LOG_PREFIX, 'unregistered', registrations.length, 'service workers');
+      }
+    }
+
+    // 清除 IndexedDB（可能存储了 token）
+    if (window.indexedDB && typeof window.indexedDB.databases === 'function') {
+      try {
+        const dbs = await window.indexedDB.databases();
+        for (const db of dbs) {
+          if (db.name) window.indexedDB.deleteDatabase(db.name);
+        }
+        if (dbs.length > 0) {
+          console.log(LOG_PREFIX, 'deleted', dbs.length, 'IndexedDB databases');
+        }
+      } catch (_) { /* ignore */ }
+    }
+
+    console.log(LOG_PREFIX, 'clearAllCookies done, total operations:', count);
     return count;
   }
 
