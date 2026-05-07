@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="820" viewBox="0 0 560 820">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Background overlay hint -->
+  <rect width="560" height="820" rx="0" fill="#f0f0f0"/>
+
+  <!-- Panel -->
+  <rect x="20" y="10" width="520" height="800" rx="12" fill="#fff" filter="url(#shadow)"/>
+
+  <!-- Header -->
+  <rect x="20" y="10" width="520" height="52" rx="12" fill="url(#headerGrad)"/>
+  <rect x="20" y="40" width="520" height="22" fill="url(#headerGrad)"/>
+  <text x="40" y="42" font-family="system-ui" font-size="16" font-weight="600" fill="#fff">Cookie Manager</text>
+  <text x="516" y="42" font-family="system-ui" font-size="18" fill="#fff" opacity="0.8" text-anchor="end">x</text>
+
+  <!-- Info bar -->
+  <rect x="36" y="74" width="488" height="44" rx="8" fill="#f0f4ff"/>
+  <text x="48" y="93" font-family="system-ui" font-size="12" fill="#4338ca">
+    <tspan font-weight="400">当前域名: </tspan>
+    <tspan font-weight="700">x.com</tspan>
+    <tspan dx="20" font-weight="400">Cookie引擎: </tspan>
+    <tspan font-weight="700">GM_cookie (HttpOnly)</tspan>
+  </text>
+
+  <!-- ==================== Section 1: Cookie List ==================== -->
+  <text x="36" y="140" font-family="system-ui" font-size="13" font-weight="600" fill="#374151" letter-spacing="0.5">
+    COOKIE 列表
+  </text>
+  <rect x="108" y="128" width="24" height="18" rx="9" fill="#667eea"/>
+  <text x="120" y="141" font-family="system-ui" font-size="11" font-weight="600" fill="#fff" text-anchor="middle">8</text>
+
+  <!-- Cookie list box -->
+  <rect x="36" y="150" width="488" height="156" rx="8" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+
+  <!-- Cookie items -->
+  <line x1="36" y1="176" x2="524" y2="176" stroke="#f3f4f6" stroke-width="1"/>
+  <text x="48" y="170" font-family="monospace" font-size="11" font-weight="600" fill="#6d28d9">auth_token</text>
+  <text x="170" y="170" font-family="monospace" font-size="11" fill="#6b7280">abc123def456...</text>
+
+  <line x1="36" y1="202" x2="524" y2="202" stroke="#f3f4f6" stroke-width="1"/>
+  <text x="48" y="196" font-family="monospace" font-size="11" font-weight="600" fill="#6d28d9">guest_id</text>
+  <text x="170" y="196" font-family="monospace" font-size="11" fill="#6b7280">v1%3A177280935478...</text>
+
+  <line x1="36" y1="228" x2="524" y2="228" stroke="#f3f4f6" stroke-width="1"/>
+  <text x="48" y="222" font-family="monospace" font-size="11" font-weight="600" fill="#6d28d9">ct0</text>
+  <text x="170" y="222" font-family="monospace" font-size="11" fill="#6b7280">ef0656ad907ae1b8df...</text>
+
+  <line x1="36" y1="254" x2="524" y2="254" stroke="#f3f4f6" stroke-width="1"/>
+  <text x="48" y="248" font-family="monospace" font-size="11" font-weight="600" fill="#6d28d9">twid</text>
+  <text x="170" y="248" font-family="monospace" font-size="11" fill="#6b7280">u%3D200187470604...</text>
+
+  <line x1="36" y1="280" x2="524" y2="280" stroke="#f3f4f6" stroke-width="1"/>
+  <text x="48" y="274" font-family="monospace" font-size="11" font-weight="600" fill="#6d28d9">lang</text>
+  <text x="170" y="274" font-family="monospace" font-size="11" fill="#6b7280">en</text>
+
+  <text x="280" y="298" font-family="system-ui" font-size="11" fill="#9ca3af" text-anchor="middle">... 滚动查看更多 ...</text>
+
+  <!-- Cookie action buttons -->
+  <rect x="36" y="316" width="238" height="34" rx="8" fill="#f3f4f6"/>
+  <text x="155" y="338" font-family="system-ui" font-size="13" font-weight="500" fill="#374151" text-anchor="middle">导出 Cookie</text>
+
+  <rect x="286" y="316" width="238" height="34" rx="8" fill="#f3f4f6"/>
+  <text x="405" y="338" font-family="system-ui" font-size="13" font-weight="500" fill="#374151" text-anchor="middle">刷新列表</text>
+
+  <!-- ==================== Divider ==================== -->
+  <line x1="36" y1="366" x2="524" y2="366" stroke="#e5e7eb" stroke-width="1"/>
+
+  <!-- ==================== Section 2: Clean ==================== -->
+  <text x="36" y="390" font-family="system-ui" font-size="13" font-weight="600" fill="#374151" letter-spacing="0.5">
+    清理
+  </text>
+
+  <!-- Clean buttons - 2x2 grid -->
+  <rect x="36" y="400" width="238" height="34" rx="8" fill="#fee2e2"/>
+  <text x="155" y="422" font-family="system-ui" font-size="13" font-weight="500" fill="#dc2626" text-anchor="middle">清除所有 Cookie</text>
+
+  <rect x="286" y="400" width="238" height="34" rx="8" fill="#fee2e2"/>
+  <text x="405" y="422" font-family="system-ui" font-size="13" font-weight="500" fill="#dc2626" text-anchor="middle">清除 Storage</text>
+
+  <rect x="36" y="444" width="238" height="34" rx="8" fill="#fee2e2"/>
+  <text x="155" y="466" font-family="system-ui" font-size="13" font-weight="500" fill="#dc2626" text-anchor="middle">清除 Cache Storage</text>
+
+  <rect x="286" y="444" width="238" height="34" rx="8" fill="#dc2626"/>
+  <text x="405" y="466" font-family="system-ui" font-size="13" font-weight="600" fill="#fff" text-anchor="middle">一键清除全部</text>
+
+  <!-- ==================== Divider ==================== -->
+  <line x1="36" y1="498" x2="524" y2="498" stroke="#e5e7eb" stroke-width="1"/>
+
+  <!-- ==================== Section 3: Import ==================== -->
+  <text x="36" y="522" font-family="system-ui" font-size="13" font-weight="600" fill="#374151" letter-spacing="0.5">
+    导入 COOKIE
+  </text>
+
+  <!-- Textarea -->
+  <rect x="36" y="532" width="488" height="160" rx="8" fill="none" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="48" y="554" font-family="monospace" font-size="12" fill="#9ca3af">粘贴 Cookie 字符串，例如:</text>
+  <text x="48" y="572" font-family="monospace" font-size="12" fill="#9ca3af">auth_token=abc123; guest_id=v1:123;</text>
+  <text x="48" y="590" font-family="monospace" font-size="12" fill="#9ca3af">Path=/; Domain=x.com; ct0=xyz789</text>
+
+  <!-- Import buttons -->
+  <rect x="36" y="702" width="238" height="36" rx="8" fill="#667eea"/>
+  <text x="155" y="725" font-family="system-ui" font-size="13" font-weight="500" fill="#fff" text-anchor="middle">导入 Cookie</text>
+
+  <rect x="286" y="702" width="238" height="36" rx="8" fill="#059669"/>
+  <text x="405" y="725" font-family="system-ui" font-size="13" font-weight="500" fill="#fff" text-anchor="middle">导入并刷新页面</text>
+
+  <!-- ==================== Footer hint ==================== -->
+  <text x="280" y="770" font-family="system-ui" font-size="11" fill="#9ca3af" text-anchor="middle">快捷键 Alt+C 打开 | ESC 关闭</text>
+
+  <!-- Design notes (outside panel) -->
+  <!-- Annotations -->
+  <rect x="0" y="0" width="560" height="820" fill="none" stroke="#ccc" stroke-width="1" stroke-dasharray="4"/>
+</svg>
