@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         Universal Login - Cookie Manager
-// @namespace    https://github.com/universal-login
+// @namespace    https://github.com/Robin528919/universal-login
 // @version      1.2.0
 // @description  清理网站Cookies/缓存，批量导入Cookies实现快速登录
-// @author       You
+// @author       Robin528919 <robin528919@gmail.com>
+// @homepageURL  https://github.com/Robin528919/universal-login
+// @supportURL   https://github.com/Robin528919/universal-login/issues
 // @match        *://*/*
 // @grant        GM_registerMenuCommand
 // @grant        GM_addStyle
