@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Universal Login - Cookie Manager
 // @namespace    https://github.com/Robin528919/universal-login
-// @version      1.2.0
+// @version      1.3.0
 // @description  清理网站Cookies/缓存，批量导入Cookies实现快速登录
 // @author       Robin528919 <robin528919@gmail.com>
 // @homepageURL  https://github.com/Robin528919/universal-login
@@ -252,6 +252,43 @@
       font-size: 11px;
       color: #9ca3af;
       padding-top: 8px;
+    }
+    #ul-fab {
+      position: fixed;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.45);
+      cursor: grab;
+      z-index: 2147483645;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.25s;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    #ul-fab:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    #ul-fab.ul-fab-dragging {
+      cursor: grabbing;
+      transition: none;
+      opacity: 0.85;
+    }
+    #ul-fab.ul-fab-hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.6);
+    }
+    #ul-fab svg {
+      width: 24px;
+      height: 24px;
+      pointer-events: none;
     }
   `);
 
@@ -764,6 +801,7 @@
     const closePanel = () => {
       panel.style.display = 'none';
       overlay.style.display = 'none';
+      setFabVisible(true);
     };
 
     panel.querySelector('#ul-close-btn').addEventListener('click', closePanel);
@@ -895,10 +933,135 @@
     }
     panel.style.display = 'block';
     overlay.style.display = 'block';
+    setFabVisible(false);
+  }
+
+  // ========== 浮动按钮 (FAB) ==========
+  const FAB_POS_KEY = 'ul_fab_position';
+  const FAB_SIZE = 48;
+  const FAB_MARGIN = 20;
+
+  function setFabVisible(visible) {
+    const fab = document.getElementById('ul-fab');
+    if (!fab) return;
+    fab.classList.toggle('ul-fab-hidden', !visible);
+  }
+
+  function getSavedFabPos() {
+    try {
+      const raw = GM_getValue(FAB_POS_KEY, null);
+      if (!raw) return null;
+      const obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (typeof obj.left === 'number' && typeof obj.top === 'number') return obj;
+    } catch (_) { /* ignore */ }
+    return null;
+  }
+
+  function saveFabPos(left, top) {
+    try {
+      GM_setValue(FAB_POS_KEY, JSON.stringify({ left, top }));
+    } catch (_) { /* ignore */ }
+  }
+
+  function clampFabPos(left, top) {
+    const maxLeft = Math.max(0, window.innerWidth - FAB_SIZE);
+    const maxTop = Math.max(0, window.innerHeight - FAB_SIZE);
+    return {
+      left: Math.min(Math.max(0, left), maxLeft),
+      top: Math.min(Math.max(0, top), maxTop)
+    };
+  }
+
+  function applyFabPos(fab, left, top) {
+    const clamped = clampFabPos(left, top);
+    fab.style.left = clamped.left + 'px';
+    fab.style.top = clamped.top + 'px';
+    fab.style.right = 'auto';
+    fab.style.bottom = 'auto';
+  }
+
+  function createFab() {
+    if (document.getElementById('ul-fab')) return;
+
+    const fab = document.createElement('div');
+    fab.id = 'ul-fab';
+    fab.title = 'Cookie Manager (Alt+C)';
+    fab.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.54 11.26A10 10 0 1 1 12.74 2.46a6 6 0 0 0 8.8 8.8z"/>
+        <circle cx="8.5" cy="10.5" r="0.6" fill="currentColor"/>
+        <circle cx="15" cy="14" r="0.6" fill="currentColor"/>
+        <circle cx="11" cy="16.5" r="0.6" fill="currentColor"/>
+      </svg>
+    `;
+    document.body.appendChild(fab);
+
+    const saved = getSavedFabPos();
+    if (saved) {
+      applyFabPos(fab, saved.left, saved.top);
+    } else {
+      applyFabPos(fab, window.innerWidth - FAB_SIZE - FAB_MARGIN, window.innerHeight - FAB_SIZE - FAB_MARGIN);
+    }
+
+    let dragState = null;
+
+    fab.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      const rect = fab.getBoundingClientRect();
+      dragState = {
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+        pointerId: e.pointerId
+      };
+      fab.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    fab.addEventListener('pointermove', (e) => {
+      if (!dragState || e.pointerId !== dragState.pointerId) return;
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      if (!dragState.moved && Math.hypot(dx, dy) > 5) {
+        dragState.moved = true;
+        fab.classList.add('ul-fab-dragging');
+      }
+      if (dragState.moved) {
+        applyFabPos(fab, e.clientX - dragState.offsetX, e.clientY - dragState.offsetY);
+      }
+    });
+
+    const endDrag = (e) => {
+      if (!dragState || e.pointerId !== dragState.pointerId) return;
+      const wasDrag = dragState.moved;
+      fab.classList.remove('ul-fab-dragging');
+      try { fab.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+      dragState = null;
+
+      if (wasDrag) {
+        const left = parseFloat(fab.style.left) || 0;
+        const top = parseFloat(fab.style.top) || 0;
+        saveFabPos(left, top);
+      } else {
+        openPanel();
+      }
+    };
+    fab.addEventListener('pointerup', endDrag);
+    fab.addEventListener('pointercancel', endDrag);
+
+    // 窗口尺寸变化时重新约束位置
+    window.addEventListener('resize', () => {
+      const left = parseFloat(fab.style.left) || 0;
+      const top = parseFloat(fab.style.top) || 0;
+      applyFabPos(fab, left, top);
+    });
   }
 
   // ========== 注册菜单 ==========
   GM_registerMenuCommand('Cookie Manager', openPanel);
+  createFab();
 
   // ========== 快捷键 Alt+C ==========
   document.addEventListener('keydown', (e) => {
