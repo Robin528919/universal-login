@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Universal Login Receiver · 本地测试页</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e3e8f0 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(102, 126, 234, 0.15);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 28px 32px;
+    }
+    .header h1 {
+      margin: 0 0 6px 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .header p {
+      margin: 0;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    .body { padding: 28px 32px 32px; }
+    .warning {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #78350f;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .field { margin-bottom: 18px; }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    input, textarea, select {
+      width: 100%;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    }
+    textarea {
+      min-height: 110px;
+      font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+      font-size: 12px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+    .row { display: flex; gap: 12px; }
+    .row > * { flex: 1; }
+    .examples {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .example-btn {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .example-btn:hover {
+      background: #e5e7eb;
+      border-color: #d1d5db;
+    }
+    .preview {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-family: "SF Mono", Monaco, monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      word-break: break-all;
+      margin-top: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .preview .label { color: #94a3b8; }
+    .preview .scheme { color: #38bdf8; }
+    .preview .host { color: #a3e635; }
+    .preview .path { color: #fbbf24; }
+    .preview .key { color: #f472b6; }
+    .preview .value { color: #fcd34d; }
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .btn {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+    .btn-secondary:hover { background: #e5e7eb; }
+    .footer {
+      font-size: 12px;
+      color: #6b7280;
+      text-align: center;
+      margin-top: 20px;
+      line-height: 1.7;
+    }
+    .footer code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+    .stats {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .stats.warn { color: #b45309; }
+    .stats.error { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🍪 Universal Login Receiver · 本地测试页</h1>
+      <p>用于验证油猴脚本 <code>universal-login-receiver.user.js</code> 是否正常工作</p>
+    </div>
+    <div class="body">
+      <div class="warning">
+        <strong>⚠️ 使用前提</strong>：浏览器已安装 <code>universal-login-receiver.user.js</code>
+        油猴脚本（在 Tampermonkey 中已启用）。
+        <br>
+        <strong>⚠️ 安全提醒</strong>：本协议不做任何自动防护，注入是静默的。请只在自己的账号上测试。
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>目标站域名</label>
+          <input id="target" type="text" value="example.com" placeholder="x.com / instagram.com">
+          <div class="examples">
+            <button class="example-btn" data-target="example.com">example.com</button>
+            <button class="example-btn" data-target="x.com">x.com</button>
+            <button class="example-btn" data-target="www.instagram.com">instagram.com</button>
+            <button class="example-btn" data-target="github.com">github.com</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>路径（可选）</label>
+          <input id="path" type="text" value="/" placeholder="/">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Cookie 数据（字符串或 JSON 数组都接受）</label>
+        <textarea id="cookies" placeholder="auth_token=abc; ct0=xyz; twid=u%3D123"></textarea>
+        <div class="examples">
+          <button class="example-btn" data-example="simple">示例：简单</button>
+          <button class="example-btn" data-example="x">示例：X 三件套</button>
+          <button class="example-btn" data-example="ig">示例：Instagram</button>
+          <button class="example-btn" data-example="json">示例：JSON 数组</button>
+        </div>
+        <div class="stats" id="stats"></div>
+      </div>
+
+      <div class="field">
+        <label>生成的 URL（点击「打开并植入」就会跳到这个 URL）</label>
+        <div class="preview" id="urlPreview">—</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-secondary" id="copyBtn">复制 URL</button>
+        <button class="btn btn-primary" id="openBtn">打开并植入 →</button>
+      </div>
+
+      <div class="footer">
+        测试技巧：先把目标站设为 <code>example.com</code>，新 tab 打开后按 F12 看 Console 里
+        <code>[UL-Receiver]</code> 日志确认流程跑通；再换真实站点验证登录效果。
+      </div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const EXAMPLES = {
+      simple: 'session_id=demo123abc; user_pref=zh-CN',
+      x: 'auth_token=PUT_YOUR_AUTH_TOKEN_HERE; ct0=PUT_YOUR_CSRF_TOKEN_HERE; twid=u%3DYOUR_USER_ID',
+      ig: 'sessionid=YOUR_SESSION_ID_HERE; csrftoken=YOUR_CSRF_TOKEN; ds_user_id=YOUR_USER_ID',
+      json: JSON.stringify([
+        { name: 'auth_token', value: 'abc123', domain: '.x.com' },
+        { name: 'ct0', value: 'xyz789' },
+        { name: 'twid', value: 'u%3D1234567890' }
+      ], null, 2)
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const targetEl = $('target');
+    const pathEl = $('path');
+    const cookiesEl = $('cookies');
+    const previewEl = $('urlPreview');
+    const statsEl = $('stats');
+
+    function buildPayload() {
+      const raw = cookiesEl.value.trim();
+      if (!raw) return null;
+
+      let cookies = raw;
+      if (raw.startsWith('[')) {
+        try {
+          cookies = JSON.parse(raw);
+        } catch (e) {
+          throw new Error('JSON 数组解析失败：' + e.message);
+        }
+        if (!Array.isArray(cookies)) {
+          throw new Error('期望 JSON 数组，请用 [{...}] 格式');
+        }
+      } else if (raw.startsWith('{')) {
+        throw new Error('协议要求 cookies 是字符串或数组，不接受 JSON 对象');
+      }
+      return { v: 1, cookies };
+    }
+
+    function base64url(str) {
+      // 用 TextEncoder 处理 UTF-8（避免已废弃的 unescape API）
+      const bytes = new TextEncoder().encode(str);
+      let binary = '';
+      for (const b of bytes) binary += String.fromCharCode(b);
+      return btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    }
+
+    function buildUrl() {
+      const target = targetEl.value.trim();
+      const path = pathEl.value.trim() || '/';
+      if (!target) return { url: '', error: '请填写目标站域名' };
+
+      let payload;
+      try {
+        payload = buildPayload();
+      } catch (e) {
+        return { url: '', error: e.message };
+      }
+      if (!payload) return { url: '', error: '请填写 cookie 数据' };
+
+      const json = JSON.stringify(payload);
+      const encoded = base64url(json);
+      const url = `https://${target}${path.startsWith('/') ? '' : '/'}${path}#__ulinject=${encoded}`;
+
+      return { url, encoded, payloadSize: json.length, urlSize: url.length };
+    }
+
+    function highlightUrl(url) {
+      // 简单染色，不影响复制
+      return url
+        .replace(/^(https?:\/\/)/, '<span class="scheme">$1</span>')
+        .replace(/(https?:\/\/)([^\/]+)/, (m, scheme, host) =>
+          `<span class="scheme">${scheme}</span><span class="host">${host}</span>`)
+        .replace(/(\/[^#]*)/, '<span class="path">$1</span>')
+        .replace(/(#__ulinject=)([^&]+)/, '<span class="key">$1</span><span class="value">$2</span>');
+    }
+
+    function refresh() {
+      const r = buildUrl();
+      if (r.error) {
+        previewEl.textContent = '⚠ ' + r.error;
+        statsEl.textContent = '';
+        statsEl.className = 'stats';
+        return;
+      }
+      previewEl.innerHTML = highlightUrl(r.url);
+
+      const sizeKb = (r.urlSize / 1024).toFixed(2);
+      let statText = `payload ${r.payloadSize} 字节, URL ${r.urlSize} 字节 (${sizeKb} KB)`;
+      let statClass = 'stats';
+      if (r.urlSize > 6000) {
+        statText += ' · ⚠ 接近 8KB 限制，建议精简 cookie';
+        statClass = 'stats warn';
+      }
+      if (r.urlSize > 8000) {
+        statText += ' · ❌ 超出 Chrome 安全长度，会被截断';
+        statClass = 'stats error';
+      }
+      statsEl.textContent = statText;
+      statsEl.className = statClass;
+    }
+
+    // 监听
+    [targetEl, pathEl, cookiesEl].forEach((el) => {
+      el.addEventListener('input', refresh);
+    });
+
+    // 域名快捷按钮
+    document.querySelectorAll('.example-btn[data-target]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        targetEl.value = btn.dataset.target;
+        refresh();
+      });
+    });
+
+    // cookie 示例按钮
+    document.querySelectorAll('.example-btn[data-example]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        cookiesEl.value = EXAMPLES[btn.dataset.example] || '';
+        refresh();
+      });
+    });
+
+    // 打开
+    $('openBtn').addEventListener('click', () => {
+      const r = buildUrl();
+      if (r.error) {
+        alert(r.error);
+        return;
+      }
+      window.open(r.url, '_blank');
+    });
+
+    // 复制
+    $('copyBtn').addEventListener('click', async () => {
+      const r = buildUrl();
+      if (r.error) {
+        alert(r.error);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(r.url);
+        const btn = $('copyBtn');
+        const old = btn.textContent;
+        btn.textContent = '✓ 已复制';
+        setTimeout(() => { btn.textContent = old; }, 1500);
+      } catch (e) {
+        prompt('请手动复制以下 URL：', r.url);
+      }
+    });
+
+    // 初始化默认值
+    cookiesEl.value = EXAMPLES.simple;
+    refresh();
+  </script>
+</body>
+</html>

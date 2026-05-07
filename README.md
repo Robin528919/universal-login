@@ -1,8 +1,9 @@
 # Universal Login - Cookie Manager
 
-一个用于管理网站 Cookie 和本地缓存的通用登录辅助工具。项目提供两种形态：
+一个用于管理网站 Cookie 和本地缓存的通用登录辅助工具。项目提供三种形态：
 
-- 油猴脚本：`universal-login.user.js`，适合通过 Tampermonkey、Violentmonkey 等用户脚本管理器直接运行。
+- 油猴脚本（管理面板）：`universal-login.user.js`，适合通过 Tampermonkey、Violentmonkey 等用户脚本管理器直接运行，提供 Cookie 查看 / 清理 / 手动导入面板。
+- 油猴脚本（接收端）：`universal-login-receiver.user.js`，配合外部"账号管理控制台"（网页 A），点一下按钮新 tab 自动植入 cookie 完成登录。详见 [docs/integration/A站接入指南.md](docs/integration/A站接入指南.md)。
 - Chrome 扩展：`chrome-extension/`，基于 Manifest V3，适合需要更完整 Cookie 权限，尤其是读取和清理 `HttpOnly` Cookie 的场景。
 
 > 安全提醒：Cookie 通常等同于网站登录凭证。请只在自己的账号、自己的设备之间导出或导入 Cookie，不要保存、传播或导入来源不明的 Cookie。
@@ -29,7 +30,16 @@
 
 更详细的新手教程请查看 [docs/INSTALL_AND_USAGE.md](docs/INSTALL_AND_USAGE.md)。
 
-### 方式二：Chrome 扩展
+### 方式二：油猴接收端（一键植入模式）
+
+1. 在 Tampermonkey 中安装 `universal-login-receiver.user.js`（与方式一脚本可以并存）。
+2. 在你自己的"账号管理控制台"（网页 A）按 [docs/integration/A站接入指南.md](docs/integration/A站接入指南.md) 接入。
+3. 在 A 站点击"一键登录"按钮，自动新 tab 打开目标站、清场、注入 cookie、刷新完成登录。
+4. 想先验证脚本是否工作？双击打开 `docs/integration/demo.html`，填入 cookie 点击「打开并植入」。
+
+> ⚠️ 接收端为了简洁未启用任何自动安全防护（无签名、无来源校验、无确认弹窗），任何含 `#__ulinject=` 的链接都会被静默执行。请只点击你信任来源的"一键登录"按钮。
+
+### 方式三：Chrome 扩展
 
 1. 打开 Chrome 的扩展管理页：`chrome://extensions/`。
 2. 开启右上角的“开发者模式”。
@@ -59,7 +69,8 @@ auth_token=abc123; Path=/; Domain=example.com; SameSite=Lax
 
 ```text
 .
-├── universal-login.user.js          # 油猴脚本主文件
+├── universal-login.user.js          # 油猴脚本（管理面板）
+├── universal-login-receiver.user.js # 油猴脚本（一键植入接收端）
 ├── chrome-extension/                # Chrome Manifest V3 扩展版本
 │   ├── manifest.json                # 扩展权限与入口配置
 │   ├── background.js                # Cookie、缓存清理和导入导出逻辑
@@ -69,6 +80,11 @@ auth_token=abc123; Path=/; Domain=example.com; SameSite=Lax
 │   └── icons/                       # 扩展图标
 ├── docs/
 │   ├── INSTALL_AND_USAGE.md         # 新手安装与使用指南
+│   ├── integration/                 # 接收端接入文档
+│   │   ├── A站接入指南.md           # 给"网页 A 实现者"看的协议规范
+│   │   └── demo.html                # 本地测试页（双击打开即可用）
+│   ├── architecture/                # 架构设计图
+│   │   └── cookie-inject-flow.svg
 │   └── images/                      # 文档配图
 ├── design-mockup.svg                # 设计稿
 ├── CLAUDE.md                        # 项目协作说明
