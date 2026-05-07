@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Universal Login - Cookie Manager
 // @namespace    https://github.com/Robin528919/universal-login
-// @version      1.3.0
+// @version      1.3.1
 // @description  清理网站Cookies/缓存，批量导入Cookies实现快速登录
 // @author       Robin528919 <robin528919@gmail.com>
 // @homepageURL  https://github.com/Robin528919/universal-login
@@ -255,11 +255,11 @@
     }
     #ul-fab {
       position: fixed;
-      width: 48px;
-      height: 48px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.45);
+      box-shadow: 0 6px 22px rgba(102, 126, 234, 0.55), 0 0 0 4px rgba(255, 255, 255, 0.85);
       cursor: grab;
       z-index: 2147483645;
       display: flex;
@@ -270,10 +270,16 @@
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
+      animation: ul-fab-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes ul-fab-pulse {
+      0%, 100% { box-shadow: 0 6px 22px rgba(102, 126, 234, 0.55), 0 0 0 4px rgba(255,255,255,0.85), 0 0 0 0 rgba(102, 126, 234, 0.45); }
+      50%      { box-shadow: 0 6px 22px rgba(102, 126, 234, 0.55), 0 0 0 4px rgba(255,255,255,0.85), 0 0 0 14px rgba(102, 126, 234, 0); }
     }
     #ul-fab:hover {
-      transform: scale(1.08);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+      transform: scale(1.1);
+      box-shadow: 0 8px 28px rgba(102, 126, 234, 0.7), 0 0 0 4px rgba(255,255,255,0.9);
+      animation: none;
     }
     #ul-fab.ul-fab-dragging {
       cursor: grabbing;
@@ -286,9 +292,10 @@
       transform: scale(0.6);
     }
     #ul-fab svg {
-      width: 24px;
-      height: 24px;
+      width: 28px;
+      height: 28px;
       pointer-events: none;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
     }
   `);
 
@@ -938,7 +945,7 @@
 
   // ========== 浮动按钮 (FAB) ==========
   const FAB_POS_KEY = 'ul_fab_position';
-  const FAB_SIZE = 48;
+  const FAB_SIZE = 56;
   const FAB_MARGIN = 20;
 
   function setFabVisible(visible) {
@@ -1000,7 +1007,7 @@
     if (saved) {
       applyFabPos(fab, saved.left, saved.top);
     } else {
-      applyFabPos(fab, window.innerWidth - FAB_SIZE - FAB_MARGIN, window.innerHeight - FAB_SIZE - FAB_MARGIN);
+      applyFabPos(fab, window.innerWidth - FAB_SIZE - FAB_MARGIN, FAB_MARGIN);
     }
 
     let dragState = null;
